@@ -1,4 +1,4 @@
-# Simple Web Server in C
+# Simple Web Server in C (WORK IN PROGRESS)
 
 A minimal web server built from scratch in C to understand low-level network programming, HTTP communication, and systems programming concepts.
 
