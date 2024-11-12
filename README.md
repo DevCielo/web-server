@@ -4,7 +4,7 @@ A minimal web server built from scratch in C to understand low-level network pro
 
 ## Project Overview
 
-This project demonstrates how a basic web server works by implementing one using the C programming language. Unlike higher-level web frameworks, which abstract away networking details, writing a web server in C requires direct management of network sockets, memory, and system calls, providing a deeper understanding of how the internet works at a low level.
+This project demonstrates how a basic web server works by implementing one using the C programming language. It uses direct management of network sockets, memory, and system calls, providing me with a deeper understanding of how the internet works at a low level.
 
 This webserver was built to learn many things including:
 
