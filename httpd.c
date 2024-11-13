@@ -128,12 +128,55 @@ char *cli_read(int c)
   return buf;
 }
 
+/* Sends the actual HTTP response body to the client (in HTML) */
+void http_response(int c, char *contenttype, char *data)
+{
+ char buf[512];
+ int n;
+
+ n = strlen(data);
+ memset(buf, 0, 512);
+ snprintf(buf, 511,
+   "Content-Type: %s\n" // Content type
+   "Content-Length: %d\n" // Content Length for the body
+   "\n%s\n", // Response data (body)
+   contenttype, n, data);
+
+ n = strlen(buf);
+ write(c, buf, n);
+
+ return;
+}
+
+/* Generates and sends the HTTP headers to the client (providing information about the response including status code, content language etc. */
+void http_headers(int c, int code)
+{
+ char buf[512]; // Buffer to hold header string
+ int n; // Number of bytes written
+
+ memset(buf, 0, 512);
+ snprintf(buf, 511,
+   "HTTP/1.0 %d OK\n" // HTTP version and status code
+   "Server: httpd.c\n" // Server name
+   "Cache-Control: no-store, no-cache, max-age=0, private\n" // Caching policies
+   "Content-Language: en\n" // Content language set to English
+   "Expires: -1\n" // Prevents caching
+   "X-Frame-Options: SAMEORIGIN\n", // Security header
+   code); // Status code passed (e.g. 200, 404 etc.)
+
+ n = strlen(buf);
+ write(c, buf, n); // Sends the header string to the client
+
+ return;
+}
+
 void cli_conn(int s, int c)
 {
  httpreq *req;
  char *p;
+ char *res;
 
- p = cli_read(c);
+ p = cli_read(c); /* uses cli_read to read a section of the code */
  if (!p)
  {
   fprintf(stderr, "%s\n", error);
@@ -150,7 +193,20 @@ void cli_conn(int s, int c)
   return;
  }
 
- printf("Method: '%s'\nURL: '%s'\n", req->method, req->url);
+ /* if the request is GET, or matches "/app/webpage" Hello world html page is sent with success code */
+ if (!strcmp(req->method, "GET") && !strcmp(req->url, "/app/webpage"))
+ {
+  res = "<html>Hello world</html>";
+  http_headers(c, 200); /* 200 = everythings okay */
+  http_response(c, "text/html", res);
+ }
+ else 
+ {
+  res = "File not found";
+  http_headers(c, 404); /* 404 = file not found */
+  http_response(c, "text/plain", res);
+ }
+
  free(req);
  close(c);
 
