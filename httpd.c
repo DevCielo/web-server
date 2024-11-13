@@ -9,6 +9,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* structures */
+struct sHttpRequest
+{
+ char method[8]; /* stores the HTTP method (e.g. GET, POST) */
+ char url[128]; /* stores the URL from the request line */
+};
+typedef struct sHttpRequest httpreq;
+
 /* global */
 char *error;
 
@@ -69,6 +77,31 @@ int cli_accept(int s)
  return c;
 }
 
+/* returns 0 on error, or it returns a httpreq structure */
+/* parses the HTTP request string (buff) into a structured httpreq format */
+httpreq *parse_http(char *str) 
+{
+ httpreq *req;
+ char *p;
+
+ req = malloc(sizeof(httpreq));
+
+ for (p=str; *p && *p != ' '; p++); /* itrates through the template to find the first space (the HTTP method is the code before the space) */
+
+ if (*p == ' ')
+  *p = 0; /* if found it is replaced with a null terminator to isolate the method */
+ else
+ {
+  error = "parse_http() NOSPACE error";
+  free(req);
+
+  return 0;
+ }
+
+ strncpy(req->method, str, 7); /* copies up to 7 characters from the method into the httpreq method field */
+ return req;
+}
+
 void cli_conn(int s, int c)
 {
  return;
@@ -76,8 +109,35 @@ void cli_conn(int s, int c)
 
 int main(int argc, char *argv[])
 {
- int s,c ; /* server's and clients socket file descriptor */
+ int s,c; /* server's and clients socket file descriptor */
  char *port; /* holds the port number where the server will listen for connections */
+ char *template; /* pointer to string for hardcoded HTTP request */
+ httpreq *req;
+ char buff[512]; /* stores the simulated HTTP request */
+
+ template = 
+ "GET /sdfsdfd HTTP/1.1\n"
+ "Host: fagelsjo.net:8184\n"
+ "Upgrade-Insecure-Requests: 1\n"
+ "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\n"
+ "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.3 Safari/605.1.15\n"
+ "Accept-Language: en-GB,en;q=0.9\n"
+ "Accept-Encoding: gzip, deflate\n"
+ "Connection: keep-alive\n"
+ "\n";
+
+ memset(buff, 0, 512);
+ strncpy(buff, template, 511);
+
+ req = parse_http(buff);
+ if (!req)
+  fprintf(stderr, "%s\n", error);
+ else
+   printf("Method: '%s'\nURL: '%s'\n",
+   req->method, req->url); /* prints the http method (req->method) and url (req->url) */
+   free(req); /* memory allocated is free to prevent a memory leak */
+
+ return 0;
 
  /* checks if user provided a port number when running program */
  /* e.g. './httpd 8080' is two arguments argv[0] is the ./httpd and argv[1] is the port number */
@@ -89,7 +149,6 @@ int main(int argc, char *argv[])
  }
  else
   port = argv[1]; 
-
 
  s = srv_init(atoi(port)); /* atoi converts to int */
  if (!s)
