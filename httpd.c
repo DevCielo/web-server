@@ -87,7 +87,6 @@ httpreq *parse_http(char *str)
  req = malloc(sizeof(httpreq));
 
  for (p=str; *p && *p != ' '; p++); /* itrates through the template to find the first space (the HTTP method is the code before the space) */
-
  if (*p == ' ')
   *p = 0; /* if found it is replaced with a null terminator to isolate the method */
  else
@@ -98,12 +97,63 @@ httpreq *parse_http(char *str)
   return 0;
  }
 
- strncpy(req->method, str, 7); /* copies up to 7 characters from the method into the httpreq method field */
+ strncpy(req->method, str, 7); /* copies up to 7 characters from the method into httpreq method field */
+
+ for (str=++p; *p && *p != ' '; p++);
+ if (*p == ' ')
+    *p = 0;
+ else
+ {
+    error = "parse_http() 2NDSPACE error";
+    free(req);
+    return 0;
+ }
+
+ strncpy(req->url, str, 127); /* copies up to 127 characters from the method into the httpreq url field */
  return req;
+}
+
+/* return 0 on error, or return the data */
+char *cli_read(int c)
+{
+ static char buf[512];
+
+ memset(buf, 0, 512);
+ if (read(c, buf, 511) < 0)
+ {
+  error = "read() error";
+  return 0;
+ }
+ else
+  return buf;
 }
 
 void cli_conn(int s, int c)
 {
+ httpreq *req;
+ char *p;
+
+ p = cli_read(c);
+ if (!p)
+ {
+  fprintf(stderr, "%s\n", error);
+  close(c);
+  return;
+ }
+ 
+ req = parse_http(p);
+ if (!req)
+ {
+  fprintf(stderr, "%s\n", error);
+  close(c);
+
+  return;
+ }
+
+ printf("Method: '%s'\nURL: '%s'\n", req->method, req->url);
+ free(req);
+ close(c);
+
  return;
 }
 
@@ -111,33 +161,6 @@ int main(int argc, char *argv[])
 {
  int s,c; /* server's and clients socket file descriptor */
  char *port; /* holds the port number where the server will listen for connections */
- char *template; /* pointer to string for hardcoded HTTP request */
- httpreq *req;
- char buff[512]; /* stores the simulated HTTP request */
-
- template = 
- "GET /sdfsdfd HTTP/1.1\n"
- "Host: fagelsjo.net:8184\n"
- "Upgrade-Insecure-Requests: 1\n"
- "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\n"
- "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.3 Safari/605.1.15\n"
- "Accept-Language: en-GB,en;q=0.9\n"
- "Accept-Encoding: gzip, deflate\n"
- "Connection: keep-alive\n"
- "\n";
-
- memset(buff, 0, 512);
- strncpy(buff, template, 511);
-
- req = parse_http(buff);
- if (!req)
-  fprintf(stderr, "%s\n", error);
- else
-   printf("Method: '%s'\nURL: '%s'\n",
-   req->method, req->url); /* prints the http method (req->method) and url (req->url) */
-   free(req); /* memory allocated is free to prevent a memory leak */
-
- return 0;
 
  /* checks if user provided a port number when running program */
  /* e.g. './httpd 8080' is two arguments argv[0] is the ./httpd and argv[1] is the port number */
